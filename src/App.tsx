@@ -149,13 +149,23 @@ function App() {
     }
 
     if (isDirectory) {
-      setSelectedDirectoryIds((prev) =>
-        prev.includes(id) ? prev.filter((did) => did !== id) : [...prev, id]
-      );
+      setSelectedDirectoryIds((prev) => {
+        const newSelection = prev.includes(id) ? prev.filter((did) => did !== id) : [...prev, id];
+        // Auto-exit selection mode if no items are selected
+        if (newSelection.length === 0 && selectedFileIds.length === 0) {
+          setSelectionMode(false);
+        }
+        return newSelection;
+      });
     } else {
-      setSelectedFileIds((prev) =>
-        prev.includes(id) ? prev.filter((fid) => fid !== id) : [...prev, id]
-      );
+      setSelectedFileIds((prev) => {
+        const newSelection = prev.includes(id) ? prev.filter((fid) => fid !== id) : [...prev, id];
+        // Auto-exit selection mode if no items are selected
+        if (newSelection.length === 0 && selectedDirectoryIds.length === 0) {
+          setSelectionMode(false);
+        }
+        return newSelection;
+      });
     }
   };
 

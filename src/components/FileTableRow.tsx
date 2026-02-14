@@ -11,7 +11,15 @@ import {
   Loader2,
   Folder,
   FolderOpen,
+  Eye,
+  X,
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 import type { FileMetadata, DirectoryMetadata } from '../types';
 import { formatFileSize, formatRelativeTime, getFileCategory } from '../utils/format';
 import toast from 'react-hot-toast';
@@ -38,6 +46,8 @@ const FileTableRow = ({
   const [downloading, setDownloading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
 
@@ -49,8 +59,12 @@ const FileTableRow = ({
       if (longPressTimerRef.current) {
         clearTimeout(longPressTimerRef.current);
       }
+      // Clean up image preview URL when component unmounts
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
     };
-  }, []);
+  }, [imagePreviewUrl]);
 
   const getFileIcon = () => {
     if (isDirectory) {
@@ -114,6 +128,36 @@ const FileTableRow = ({
     }
   };
 
+  const handleShowImage = async () => {
+    if (!fileItem) return;
+
+    try {
+      const response = await fetch(`/api/files/${fileItem.id}/download`);
+
+      if (!response.ok) {
+        throw new Error('Failed to load image');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      setImagePreviewUrl(url);
+      setShowImagePreview(true);
+    } catch (error) {
+      console.error('Image preview error:', error);
+      toast.error('Failed to load image');
+    }
+  };
+
+  const handleCloseImagePreview = () => {
+    setShowImagePreview(false);
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+      setImagePreviewUrl(null);
+    }
+  };
+
+  const isImage = fileItem && getFileCategory(fileItem.mime_type) === 'Image';
+
   const handleDelete = async () => {
     const itemName = isDirectory
       ? (item as DirectoryMetadata).name
@@ -158,10 +202,13 @@ const FileTableRow = ({
       return;
     }
 
-    if (selectionMode) {
-      onSelectionToggle(item.id, isDirectory);
-    } else if (isDirectory && onNavigate) {
+    // For folders: clicking the row navigates into the folder
+    // For files: clicking the row selects the file
+    // (The checkbox will handle selection for both when clicked directly)
+    if (isDirectory && onNavigate) {
       onNavigate(item.id);
+    } else {
+      onSelectionToggle(item.id, isDirectory);
     }
   };
 
@@ -194,14 +241,21 @@ const FileTableRow = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Checkbox Column */}
-      <td className="px-6 py-4 w-12">
+      <td
+        className="px-6 py-4 w-12"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (selectionMode || isHovered) {
+            onSelectionToggle(item.id, isDirectory);
+          }
+        }}
+      >
         {(selectionMode || isHovered) && (
           <input
             type="checkbox"
             checked={isSelected}
             onChange={(e) => {
               e.stopPropagation();
-              onSelectionToggle(item.id, isDirectory);
             }}
             className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
           />
@@ -248,6 +302,30 @@ const FileTableRow = ({
       {!selectionMode && (
         <td className="px-6 py-4 text-right">
           <div className="flex items-center justify-end space-x-2">
+            {isDirectory && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onNavigate) onNavigate(item.id);
+                }}
+                className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                title="Open Folder"
+              >
+                <FolderOpen className="w-5 h-5" />
+              </button>
+            )}
+            {isImage && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleShowImage();
+                }}
+                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                title="Show Image"
+              >
+                <Eye className="w-5 h-5" />
+              </button>
+            )}
             {!isDirectory && (
               <button
                 onClick={(e) => {
@@ -283,6 +361,32 @@ const FileTableRow = ({
           </div>
         </td>
       )}
+
+      {/* Image Preview Modal */}
+      <Dialog open={showImagePreview} onOpenChange={handleCloseImagePreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="flex items-center justify-between">
+              <span className="truncate">{fileItem?.original_filename}</span>
+              <button
+                onClick={handleCloseImagePreview}
+                className="ml-4 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-6 pt-2 overflow-auto max-h-[calc(90vh-80px)]">
+            {imagePreviewUrl && (
+              <img
+                src={imagePreviewUrl}
+                alt={fileItem?.original_filename || 'Preview'}
+                className="w-full h-auto rounded-lg"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </tr>
   );
 };

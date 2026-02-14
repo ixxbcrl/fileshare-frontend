@@ -14,6 +14,8 @@ import {
   Folder,
   FolderOpen,
   MoreVertical,
+  Eye,
+  X,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -22,6 +24,12 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 import type { FileMetadata, DirectoryMetadata } from '../types';
 import { formatFileSize, formatRelativeTime, getFileCategory } from '../utils/format';
 import toast from 'react-hot-toast';
@@ -49,6 +57,8 @@ const FileCard = ({
   const [deleting, setDeleting] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
 
@@ -60,8 +70,12 @@ const FileCard = ({
       if (longPressTimerRef.current) {
         clearTimeout(longPressTimerRef.current);
       }
+      // Clean up image preview URL when component unmounts
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
     };
-  }, []);
+  }, [imagePreviewUrl]);
 
   const getFileIcon = () => {
     if (isDirectory) {
@@ -125,6 +139,36 @@ const FileCard = ({
     }
   };
 
+  const handleShowImage = async () => {
+    if (!fileItem) return;
+
+    try {
+      const response = await fetch(`/api/files/${fileItem.id}/download`);
+
+      if (!response.ok) {
+        throw new Error('Failed to load image');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      setImagePreviewUrl(url);
+      setShowImagePreview(true);
+    } catch (error) {
+      console.error('Image preview error:', error);
+      toast.error('Failed to load image');
+    }
+  };
+
+  const handleCloseImagePreview = () => {
+    setShowImagePreview(false);
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+      setImagePreviewUrl(null);
+    }
+  };
+
+  const isImage = fileItem && getFileCategory(fileItem.mime_type) === 'Image';
+
   const handleDelete = async () => {
     const itemName = isDirectory
       ? (item as DirectoryMetadata).name
@@ -169,9 +213,19 @@ const FileCard = ({
       return;
     }
 
-    if (selectionMode) {
+    // For folders: clicking the card navigates into the folder
+    // For files: clicking the card selects the file
+    // (The checkbox will handle selection for both when clicked directly)
+    if (isDirectory && onNavigate) {
+      onNavigate(item.id);
+    } else {
       onSelectionToggle(item.id, isDirectory);
-    } else if (isDirectory && onNavigate) {
+    }
+  };
+
+  const handleOpenDirectory = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isDirectory && onNavigate) {
       onNavigate(item.id);
     }
   };
@@ -232,13 +286,18 @@ const FileCard = ({
       <div className="relative p-5">
         {/* Selection Checkbox */}
         {(selectionMode || isHovered) && (
-          <div className="absolute top-3 right-3 z-10">
+          <div
+            className="absolute top-3 right-3 z-10"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectionToggle(item.id, isDirectory);
+            }}
+          >
             <input
               type="checkbox"
               checked={isSelected}
               onChange={(e) => {
                 e.stopPropagation();
-                onSelectionToggle(item.id, isDirectory);
               }}
               className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
             />
@@ -279,20 +338,39 @@ const FileCard = ({
           </div>
         </div>
 
-        {/* Action Menu */}
+        {/* Action Menu - Bottom Right */}
         {!selectionMode && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 size="sm"
                 variant="ghost"
-                className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 backdrop-blur-sm hover:bg-white"
                 onClick={(e) => e.stopPropagation()}
               >
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+              {isDirectory && (
+                <DropdownMenuItem
+                  onClick={handleOpenDirectory}
+                >
+                  <FolderOpen className="w-4 h-4 mr-2" />
+                  Open Folder
+                </DropdownMenuItem>
+              )}
+              {isImage && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleShowImage();
+                  }}
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  Show Image
+                </DropdownMenuItem>
+              )}
               {!isDirectory && (
                 <DropdownMenuItem
                   onClick={(e) => {
@@ -394,6 +472,32 @@ const FileCard = ({
 
       {/* Bottom gradient accent */}
       <div className={`h-1 bg-gradient-to-r ${getGradientForType()} opacity-0 group-hover:opacity-100 transition-opacity`} />
+
+      {/* Image Preview Modal */}
+      <Dialog open={showImagePreview} onOpenChange={handleCloseImagePreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="flex items-center justify-between">
+              <span className="truncate">{fileItem?.original_filename}</span>
+              <button
+                onClick={handleCloseImagePreview}
+                className="ml-4 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-6 pt-2 overflow-auto max-h-[calc(90vh-80px)]">
+            {imagePreviewUrl && (
+              <img
+                src={imagePreviewUrl}
+                alt={fileItem?.original_filename || 'Preview'}
+                className="w-full h-auto rounded-lg"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };
