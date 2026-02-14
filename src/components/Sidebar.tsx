@@ -25,7 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const usagePercentage = (totalSize / storageLimit) * 100;
 
   return (
-    <div className="w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col border-r border-slate-700">
+    <div className="w-64 sm:w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col border-r border-slate-700 h-full">
       {/* Logo */}
       <div className="p-6 border-b border-slate-700">
         <div className="flex items-center gap-3">

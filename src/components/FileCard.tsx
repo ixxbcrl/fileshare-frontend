@@ -283,11 +283,11 @@ const FileCard = ({
       {/* Gradient accent overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
 
-      <div className="relative p-5">
+      <div className="relative p-4 sm:p-5">
         {/* Selection Checkbox */}
         {(selectionMode || isHovered) && (
           <div
-            className="absolute top-3 right-3 z-10"
+            className="absolute top-2 sm:top-3 right-2 sm:right-3 z-10"
             onClick={(e) => {
               e.stopPropagation();
               onSelectionToggle(item.id, isDirectory);
@@ -305,13 +305,13 @@ const FileCard = ({
         )}
 
         {/* Icon with gradient background */}
-        <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${getGradientForType()} flex items-center justify-center shadow-lg transform transition-transform duration-200 group-hover:scale-110 mb-4`}>
+        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br ${getGradientForType()} flex items-center justify-center shadow-lg transform transition-transform duration-200 group-hover:scale-110 mb-3 sm:mb-4`}>
           <div className="text-white">{getFileIcon()}</div>
         </div>
 
         {/* Title and metadata */}
-        <div className="mb-3">
-          <h3 className="text-base font-semibold text-slate-900 truncate group-hover:text-indigo-600 transition-colors mb-1">
+        <div className="mb-2 sm:mb-3">
+          <h3 className="text-sm sm:text-base font-semibold text-slate-900 truncate group-hover:text-indigo-600 transition-colors mb-1">
             {isDirectory ? directoryItem?.name : fileItem?.original_filename}
           </h3>
 
@@ -345,7 +345,7 @@ const FileCard = ({
               <Button
                 size="sm"
                 variant="ghost"
-                className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 backdrop-blur-sm hover:bg-white"
+                className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 backdrop-blur-sm hover:bg-white"
                 onClick={(e) => e.stopPropagation()}
               >
                 <MoreVertical className="w-4 h-4" />
@@ -417,7 +417,7 @@ const FileCard = ({
 
         {/* Detailed Info (Collapsible) */}
         {showInfo && !selectionMode && (
-          <div className="mt-4 pt-4 border-t border-slate-200 space-y-3 text-xs animate-fade-in">
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-200 space-y-2 sm:space-y-3 text-xs animate-fade-in">
             {!isDirectory && fileItem && (
               <>
                 {fileItem.description && (
@@ -475,19 +475,19 @@ const FileCard = ({
 
       {/* Image Preview Modal */}
       <Dialog open={showImagePreview} onOpenChange={handleCloseImagePreview}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
-          <DialogHeader className="p-6 pb-2">
+        <DialogContent className="max-w-4xl max-h-[95vh] sm:max-h-[90vh] p-0 overflow-hidden w-[95vw] sm:w-auto">
+          <DialogHeader className="p-4 sm:p-6 pb-2">
             <DialogTitle className="flex items-center justify-between">
-              <span className="truncate">{fileItem?.original_filename}</span>
+              <span className="truncate text-sm sm:text-base">{fileItem?.original_filename}</span>
               <button
                 onClick={handleCloseImagePreview}
-                className="ml-4 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="ml-2 sm:ml-4 p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </DialogTitle>
           </DialogHeader>
-          <div className="p-6 pt-2 overflow-auto max-h-[calc(90vh-80px)]">
+          <div className="p-4 sm:p-6 pt-2 overflow-auto max-h-[calc(95vh-60px)] sm:max-h-[calc(90vh-80px)]">
             {imagePreviewUrl && (
               <img
                 src={imagePreviewUrl}

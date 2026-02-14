@@ -242,7 +242,7 @@ const FileTableRow = ({
     >
       {/* Checkbox Column */}
       <td
-        className="px-6 py-4 w-12"
+        className="px-3 sm:px-6 py-3 sm:py-4 w-12"
         onClick={(e) => {
           e.stopPropagation();
           if (selectionMode || isHovered) {
@@ -263,36 +263,36 @@ const FileTableRow = ({
       </td>
 
       {/* Name Column */}
-      <td className="px-6 py-4">
-        <div className="flex items-center space-x-3">
+      <td className="px-3 sm:px-6 py-3 sm:py-4">
+        <div className="flex items-center space-x-2 sm:space-x-3">
           {getFileIcon()}
           <div className="min-w-0">
-            <p className={`font-medium text-gray-800 truncate ${isDirectory ? 'font-semibold' : ''}`}>
+            <p className={`text-sm sm:text-base font-medium text-gray-800 truncate ${isDirectory ? 'font-semibold' : ''}`}>
               {isDirectory ? directoryItem?.name : fileItem?.original_filename}
             </p>
             {!isDirectory && fileItem?.description && (
-              <p className="text-sm text-gray-500 truncate">{fileItem.description}</p>
+              <p className="text-xs sm:text-sm text-gray-500 truncate">{fileItem.description}</p>
             )}
           </div>
         </div>
       </td>
 
       {/* Size Column */}
-      <td className="px-6 py-4 text-sm text-gray-600 hidden sm:table-cell">
+      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">
         {isDirectory
           ? formatFileSize(directoryItem?.total_size || 0)
           : formatFileSize(fileItem?.file_size || 0)}
       </td>
 
       {/* Type/Items Column */}
-      <td className="px-6 py-4 text-sm text-gray-600 hidden md:table-cell">
+      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden md:table-cell">
         {isDirectory
           ? `${directoryItem?.file_count || 0} item(s)`
           : getFileCategory(fileItem?.mime_type || null)}
       </td>
 
       {/* Date Column */}
-      <td className="px-6 py-4 text-sm text-gray-600 hidden lg:table-cell">
+      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden lg:table-cell">
         {isDirectory
           ? formatRelativeTime(directoryItem?.updated_at || '')
           : formatRelativeTime(fileItem?.uploaded_at || '')}
@@ -300,8 +300,8 @@ const FileTableRow = ({
 
       {/* Actions Column */}
       {!selectionMode && (
-        <td className="px-6 py-4 text-right">
-          <div className="flex items-center justify-end space-x-2">
+        <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
+          <div className="flex items-center justify-end space-x-1 sm:space-x-2">
             {isDirectory && (
               <button
                 onClick={(e) => {
@@ -364,19 +364,19 @@ const FileTableRow = ({
 
       {/* Image Preview Modal */}
       <Dialog open={showImagePreview} onOpenChange={handleCloseImagePreview}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
-          <DialogHeader className="p-6 pb-2">
+        <DialogContent className="max-w-4xl max-h-[95vh] sm:max-h-[90vh] p-0 overflow-hidden w-[95vw] sm:w-auto">
+          <DialogHeader className="p-4 sm:p-6 pb-2">
             <DialogTitle className="flex items-center justify-between">
-              <span className="truncate">{fileItem?.original_filename}</span>
+              <span className="truncate text-sm sm:text-base">{fileItem?.original_filename}</span>
               <button
                 onClick={handleCloseImagePreview}
-                className="ml-4 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="ml-2 sm:ml-4 p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </DialogTitle>
           </DialogHeader>
-          <div className="p-6 pt-2 overflow-auto max-h-[calc(90vh-80px)]">
+          <div className="p-4 sm:p-6 pt-2 overflow-auto max-h-[calc(95vh-60px)] sm:max-h-[calc(90vh-80px)]">
             {imagePreviewUrl && (
               <img
                 src={imagePreviewUrl}

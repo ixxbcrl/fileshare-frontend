@@ -31,6 +31,9 @@ function App() {
   // Modal state
   const [isNewFolderModalOpen, setIsNewFolderModalOpen] = useState(false);
 
+  // Mobile sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const fetchFiles = useCallback(async (directoryId?: string | null, showToast = false) => {
     try {
       setRefreshing(true);
@@ -184,7 +187,7 @@ function App() {
     directories.reduce((sum, dir) => sum + dir.total_size, 0);
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -208,31 +211,52 @@ function App() {
         }}
       />
 
-      {/* Sidebar */}
-      <Sidebar
-        currentDirectoryId={currentDirectoryId}
-        onNavigate={handleNavigate}
-        onNewFolder={() => setIsNewFolderModalOpen(true)}
-        totalItems={totalItems}
-        totalSize={totalSize}
-        healthStatus={healthStatus}
-      />
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - Hidden on mobile, slides in when open */}
+      <div className={`
+        fixed lg:static inset-y-0 left-0 z-50
+        transform transition-transform duration-300 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        <Sidebar
+          currentDirectoryId={currentDirectoryId}
+          onNavigate={(dirId) => {
+            handleNavigate(dirId);
+            setIsSidebarOpen(false); // Close sidebar on mobile after navigation
+          }}
+          onNewFolder={() => {
+            setIsNewFolderModalOpen(true);
+            setIsSidebarOpen(false);
+          }}
+          totalItems={totalItems}
+          totalSize={totalSize}
+          healthStatus={healthStatus}
+        />
+      </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden w-full">
         {/* Top Bar */}
         <TopBar
           onRefresh={handleRefresh}
           refreshing={refreshing}
           healthStatus={healthStatus}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-7xl mx-auto p-8">
+          <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
             {/* Breadcrumb Navigation */}
             {breadcrumbPath.length > 0 && (
-              <div className="mb-6">
+              <div className="mb-4 sm:mb-6">
                 <Breadcrumb path={breadcrumbPath} onNavigate={handleNavigate} />
               </div>
             )}
@@ -241,13 +265,13 @@ function App() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-8 p-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl text-white shadow-xl shadow-indigo-500/30"
+              className="mb-6 sm:mb-8 p-4 sm:p-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl sm:rounded-2xl text-white shadow-xl shadow-indigo-500/30"
             >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                  <Upload className="w-5 h-5" />
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="bg-white/20 p-1.5 sm:p-2 rounded-lg backdrop-blur-sm">
+                  <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <h2 className="text-lg font-semibold">Quick Upload</h2>
+                <h2 className="text-base sm:text-lg font-semibold">Quick Upload</h2>
               </div>
               <FileUpload onUploadSuccess={handleUploadSuccess} currentDirectoryId={currentDirectoryId} />
             </motion.div>

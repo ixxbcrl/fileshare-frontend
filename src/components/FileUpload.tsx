@@ -111,12 +111,12 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
         onDrop={handleDrop}
         onClick={handleBrowseClick}
         className={`
-          relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer
-          transition-all duration-300 ease-in-out
+          relative border-2 border-dashed rounded-xl p-4 sm:p-6 text-center cursor-pointer
+          transition-all duration-300 ease-in-out min-h-[120px] sm:min-h-0
           ${
             isDragging
               ? 'border-white bg-white/30 backdrop-blur-sm'
-              : 'border-white/40 bg-white/10 backdrop-blur-sm hover:border-white hover:bg-white/20'
+              : 'border-white/40 bg-white/10 backdrop-blur-sm hover:border-white hover:bg-white/20 active:bg-white/25'
           }
         `}
       >
@@ -128,9 +128,9 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
           disabled={uploading}
         />
 
-        <div className="flex flex-col items-center space-y-3">
+        <div className="flex flex-col items-center space-y-2 sm:space-y-3">
           <Upload
-            className={`w-12 h-12 ${
+            className={`w-10 h-10 sm:w-12 sm:h-12 ${
               isDragging ? 'text-white' : 'text-white/80'
             } transition-colors duration-200`}
           />
@@ -138,8 +138,8 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
           {selectedFile ? (
             <div className="w-full">
               <div className="flex items-center justify-between bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-sm">
-                <div className="flex-1 text-left">
-                  <p className="font-semibold text-slate-900 truncate text-sm">
+                <div className="flex-1 text-left min-w-0">
+                  <p className="font-semibold text-slate-900 truncate text-xs sm:text-sm">
                     {selectedFile.name}
                   </p>
                   <p className="text-xs text-slate-600">
@@ -151,7 +151,7 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
                     e.stopPropagation();
                     handleRemoveFile();
                   }}
-                  className="ml-3 p-1.5 hover:bg-slate-100 rounded-full transition-colors"
+                  className="ml-3 p-2 hover:bg-slate-100 active:bg-slate-200 rounded-full transition-colors flex-shrink-0"
                   disabled={uploading}
                 >
                   <X className="w-4 h-4 text-slate-600" />
@@ -160,10 +160,12 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
             </div>
           ) : (
             <div className="space-y-1">
-              <p className="font-semibold text-white">
-                Drop your file here or click to browse
+              <p className="font-semibold text-white text-sm sm:text-base">
+                <span className="hidden sm:inline">Drop your file here or </span>
+                <span className="sm:hidden">Tap to </span>
+                <span className="hidden sm:inline">click to </span>browse
               </p>
-              <p className="text-sm text-white/80">
+              <p className="text-xs sm:text-sm text-white/80">
                 Any file type supported
               </p>
             </div>
@@ -173,13 +175,13 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
 
       {/* Description Input */}
       {selectedFile && (
-        <div className="mt-4">
+        <div className="mt-3 sm:mt-4">
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Add a description (optional)..."
-            className="w-full px-4 py-2 bg-white/90 backdrop-blur-sm border border-white/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-white text-slate-900 placeholder-slate-500 text-sm"
+            className="w-full px-3 sm:px-4 py-2.5 sm:py-2 bg-white/90 backdrop-blur-sm border border-white/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-white text-slate-900 placeholder-slate-500 text-sm"
             disabled={uploading}
           />
         </div>
@@ -187,12 +189,12 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
 
       {/* Upload Progress */}
       {uploading && uploadProgress > 0 && (
-        <div className="mt-4">
+        <div className="mt-3 sm:mt-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-white">
+            <span className="text-xs sm:text-sm font-semibold text-white">
               Uploading...
             </span>
-            <span className="text-sm font-semibold text-white">
+            <span className="text-xs sm:text-sm font-semibold text-white">
               {uploadProgress}%
             </span>
           </div>
@@ -207,14 +209,14 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
 
       {/* Upload Button */}
       {selectedFile && (
-        <div className="mt-4">
+        <div className="mt-3 sm:mt-4">
           <Button
             onClick={(e) => {
               e.stopPropagation();
               handleUpload();
             }}
             disabled={!selectedFile || uploading}
-            className="w-full bg-white hover:bg-white/90 text-indigo-600 shadow-lg"
+            className="w-full bg-white hover:bg-white/90 active:bg-white/80 text-indigo-600 shadow-lg min-h-[44px] text-sm sm:text-base"
           >
             {uploading ? (
               <>
