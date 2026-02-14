@@ -261,7 +261,6 @@ function App() {
               selectedFileIds={selectedFileIds}
               selectedDirectoryIds={selectedDirectoryIds}
               onSelectionToggle={handleSelectionToggle}
-              currentDirectoryId={currentDirectoryId}
             />
           </div>
         </div>

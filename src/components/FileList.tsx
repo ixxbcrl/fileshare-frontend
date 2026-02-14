@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { motion } from 'motion/react';
 import { Search, Grid, List as ListIcon, FolderOpen } from 'lucide-react';
 import type { FileMetadata, DirectoryMetadata } from '../types';
 import FileCard from './FileCard';
@@ -15,7 +14,6 @@ interface FileListProps {
   selectedFileIds: string[];
   selectedDirectoryIds: string[];
   onSelectionToggle: (id: string, isDirectory: boolean) => void;
-  currentDirectoryId: string | null;
 }
 
 type ViewMode = 'grid' | 'list';
@@ -35,25 +33,9 @@ const FileList = ({
   selectedFileIds,
   selectedDirectoryIds,
   onSelectionToggle,
-  currentDirectoryId,
 }: FileListProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 },
-  };
 
   // Combine directories and files, with directories appearing first
   const combinedItems = useMemo((): CombinedItem[] => {
