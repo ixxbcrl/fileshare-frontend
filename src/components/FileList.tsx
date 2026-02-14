@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { Search, Grid, List as ListIcon, FolderOpen } from 'lucide-react';
 import type { FileMetadata, DirectoryMetadata } from '../types';
 import FileCard from './FileCard';
@@ -14,6 +15,7 @@ interface FileListProps {
   selectedFileIds: string[];
   selectedDirectoryIds: string[];
   onSelectionToggle: (id: string, isDirectory: boolean) => void;
+  currentDirectoryId: string | null;
 }
 
 type ViewMode = 'grid' | 'list';
@@ -33,9 +35,25 @@ const FileList = ({
   selectedFileIds,
   selectedDirectoryIds,
   onSelectionToggle,
+  currentDirectoryId,
 }: FileListProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 },
+  };
 
   // Combine directories and files, with directories appearing first
   const combinedItems = useMemo((): CombinedItem[] => {
@@ -87,55 +105,53 @@ const FileList = ({
   return (
     <div className="space-y-6">
       {/* Header with Search and View Toggle */}
-      <div className="card">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">
-              Your Files
-              <span className="ml-3 text-lg font-normal text-gray-500">
-                ({filteredItems.length})
-              </span>
-            </h2>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">
+            Your Files
+            <span className="ml-3 text-lg font-normal text-slate-500">
+              ({filteredItems.length})
+            </span>
+          </h2>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search files..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-64 text-sm"
+            />
           </div>
 
-          <div className="flex items-center space-x-3">
-            {/* Search Bar */}
-            <div className="relative flex-1 sm:flex-initial">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search files..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-64"
-              />
-            </div>
-
-            {/* View Mode Toggle */}
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-                title="Grid view"
-              >
-                <Grid className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-                title="List view"
-              >
-                <ListIcon className="w-5 h-5" />
-              </button>
-            </div>
+          {/* View Mode Toggle */}
+          <div className="flex bg-slate-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'grid'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-800'
+              }`}
+              title="Grid view"
+            >
+              <Grid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-800'
+              }`}
+              title="List view"
+            >
+              <ListIcon className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
@@ -154,22 +170,23 @@ const FileList = ({
           </p>
         </div>
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filteredItems.map(({ item, isDirectory }) => (
-            <FileCard
-              key={`${isDirectory ? 'dir' : 'file'}-${item.id}`}
-              item={item}
-              isDirectory={isDirectory}
-              onDelete={onDelete}
-              onNavigate={onNavigate}
-              selectionMode={selectionMode}
-              isSelected={
-                isDirectory
-                  ? selectedDirectoryIds.includes(item.id)
-                  : selectedFileIds.includes(item.id)
-              }
-              onSelectionToggle={onSelectionToggle}
-            />
+            <div key={`${isDirectory ? 'dir' : 'file'}-${item.id}`}>
+              <FileCard
+                item={item}
+                isDirectory={isDirectory}
+                onDelete={onDelete}
+                onNavigate={onNavigate}
+                selectionMode={selectionMode}
+                isSelected={
+                  isDirectory
+                    ? selectedDirectoryIds.includes(item.id)
+                    : selectedFileIds.includes(item.id)
+                }
+                onSelectionToggle={onSelectionToggle}
+              />
+            </div>
           ))}
         </div>
       ) : (

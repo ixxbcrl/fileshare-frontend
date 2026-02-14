@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Toaster } from 'react-hot-toast';
-import { HardDrive, RefreshCw, Activity, FolderPlus } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Upload } from 'lucide-react';
 import FileUpload from './components/FileUpload';
 import FileList from './components/FileList';
 import Breadcrumb from './components/Breadcrumb';
 import NewFolderModal from './components/NewFolderModal';
 import SelectionToolbar from './components/SelectionToolbar';
+import { Sidebar } from './components/Sidebar';
+import { TopBar } from './components/TopBar';
 import type { FileMetadata, DirectoryMetadata, BreadcrumbItem } from './types';
 import toast from 'react-hot-toast';
 
@@ -28,10 +31,11 @@ function App() {
   // Modal state
   const [isNewFolderModalOpen, setIsNewFolderModalOpen] = useState(false);
 
-  const fetchFiles = async (showToast = false, directoryId: string | null = currentDirectoryId) => {
+  const fetchFiles = useCallback(async (directoryId?: string | null, showToast = false) => {
     try {
       setRefreshing(true);
-      const params = directoryId ? `?parent_directory_id=${directoryId}` : '';
+      const targetDir = directoryId !== undefined ? directoryId : currentDirectoryId;
+      const params = targetDir ? `?parent_directory_id=${targetDir}` : '';
       const response = await fetch(`/api/files${params}`);
 
       if (!response.ok) {
@@ -52,7 +56,7 @@ function App() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [currentDirectoryId]);
 
   const checkHealth = async () => {
     try {
@@ -75,7 +79,6 @@ function App() {
   };
 
   useEffect(() => {
-    fetchFiles();
     checkHealth();
 
     // Check health every 30 seconds
@@ -86,8 +89,8 @@ function App() {
 
   useEffect(() => {
     // Fetch files whenever the current directory changes
-    fetchFiles(false, currentDirectoryId);
-  }, [currentDirectoryId]);
+    fetchFiles(currentDirectoryId);
+  }, [currentDirectoryId, fetchFiles]);
 
   const handleUploadSuccess = () => {
     fetchFiles();
@@ -102,7 +105,7 @@ function App() {
   };
 
   const handleRefresh = () => {
-    fetchFiles(true);
+    fetchFiles(currentDirectoryId, true);
   };
 
   const handleNavigate = async (directoryId: string | null) => {
@@ -171,7 +174,7 @@ function App() {
     directories.reduce((sum, dir) => sum + dir.total_size, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="flex h-screen bg-slate-50">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -195,164 +198,74 @@ function App() {
         }}
       />
 
-      {/* Header */}
-      <header className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="bg-blue-600 p-3 rounded-xl">
-                <HardDrive className="w-8 h-8 text-white" />
+      {/* Sidebar */}
+      <Sidebar
+        currentDirectoryId={currentDirectoryId}
+        onNavigate={handleNavigate}
+        onNewFolder={() => setIsNewFolderModalOpen(true)}
+        totalItems={totalItems}
+        totalSize={totalSize}
+        healthStatus={healthStatus}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Bar */}
+        <TopBar
+          onRefresh={handleRefresh}
+          refreshing={refreshing}
+          healthStatus={healthStatus}
+        />
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto p-8">
+            {/* Breadcrumb Navigation */}
+            {breadcrumbPath.length > 0 && (
+              <div className="mb-6">
+                <Breadcrumb path={breadcrumbPath} onNavigate={handleNavigate} />
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">FileShare</h1>
-                <p className="text-sm text-gray-600">
-                  Secure file sharing on Raspberry Pi
-                </p>
+            )}
+
+            {/* Quick Actions Banner with Upload */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8 p-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl text-white shadow-xl shadow-indigo-500/30"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <h2 className="text-lg font-semibold">Quick Upload</h2>
               </div>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              {/* Health Status */}
-              <div className="flex items-center space-x-2">
-                <Activity
-                  className={`w-5 h-5 ${
-                    healthStatus === 'healthy'
-                      ? 'text-green-500'
-                      : healthStatus === 'unhealthy'
-                      ? 'text-red-500'
-                      : 'text-gray-400'
-                  }`}
-                />
-                <span className="text-sm font-medium text-gray-700 hidden sm:inline">
-                  {healthStatus === 'healthy'
-                    ? 'Connected'
-                    : healthStatus === 'unhealthy'
-                    ? 'Disconnected'
-                    : 'Checking...'}
-                </span>
-              </div>
-
-              {/* Refresh Button */}
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="btn-secondary flex items-center space-x-2"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
-                />
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
-          {/* Breadcrumb Navigation */}
-          {breadcrumbPath.length > 0 && (
-            <div className="card">
-              <Breadcrumb path={breadcrumbPath} onNavigate={handleNavigate} />
-            </div>
-          )}
-
-          {/* Upload Section and New Folder Button */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
               <FileUpload onUploadSuccess={handleUploadSuccess} currentDirectoryId={currentDirectoryId} />
-            </div>
-            <div className="card flex items-center justify-center">
-              <button
-                onClick={() => setIsNewFolderModalOpen(true)}
-                className="btn-primary w-full flex items-center justify-center space-x-2"
-              >
-                <FolderPlus className="w-5 h-5" />
-                <span>New Folder</span>
-              </button>
-            </div>
-          </div>
+            </motion.div>
 
-          {/* Stats Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="card">
-              <div className="flex items-center space-x-3">
-                <div className="bg-blue-100 p-3 rounded-lg">
-                  <HardDrive className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Total Items</p>
-                  <p className="text-2xl font-bold text-gray-800">{totalItems}</p>
-                </div>
-              </div>
-            </div>
+            {/* Selection Toolbar */}
+            <SelectionToolbar
+              selectedFileIds={selectedFileIds}
+              selectedDirectoryIds={selectedDirectoryIds}
+              onClearSelection={handleClearSelection}
+              onDeleteSuccess={handleBulkDeleteSuccess}
+            />
 
-            <div className="card">
-              <div className="flex items-center space-x-3">
-                <div className="bg-green-100 p-3 rounded-lg">
-                  <Activity className="w-6 h-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Total Size</p>
-                  <p className="text-2xl font-bold text-gray-800">
-                    {(totalSize / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="flex items-center space-x-3">
-                <div className="bg-purple-100 p-3 rounded-lg">
-                  <HardDrive className="w-6 h-6 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Status</p>
-                  <p className="text-2xl font-bold text-gray-800">
-                    {healthStatus === 'healthy' ? 'Online' : 'Offline'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Selection Toolbar */}
-          <SelectionToolbar
-            selectedFileIds={selectedFileIds}
-            selectedDirectoryIds={selectedDirectoryIds}
-            onClearSelection={handleClearSelection}
-            onDeleteSuccess={handleBulkDeleteSuccess}
-          />
-
-          {/* File List */}
-          <FileList
-            files={files}
-            directories={directories}
-            loading={loading}
-            onDelete={handleDelete}
-            onNavigate={handleNavigate}
-            selectionMode={selectionMode}
-            selectedFileIds={selectedFileIds}
-            selectedDirectoryIds={selectedDirectoryIds}
-            onSelectionToggle={handleSelectionToggle}
-          />
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="text-center text-gray-600">
-            <p className="text-sm">
-              FileShare - Built with React + TypeScript + Tailwind CSS
-            </p>
-            <p className="text-xs mt-1">
-              Backend: Rust (Axum) | Running on Raspberry Pi
-            </p>
+            {/* File List */}
+            <FileList
+              files={files}
+              directories={directories}
+              loading={loading}
+              onDelete={handleDelete}
+              onNavigate={handleNavigate}
+              selectionMode={selectionMode}
+              selectedFileIds={selectedFileIds}
+              selectedDirectoryIds={selectedDirectoryIds}
+              onSelectionToggle={handleSelectionToggle}
+              currentDirectoryId={currentDirectoryId}
+            />
           </div>
         </div>
-      </footer>
+      </div>
 
       {/* New Folder Modal */}
       <NewFolderModal

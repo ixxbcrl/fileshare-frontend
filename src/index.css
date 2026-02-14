@@ -1,23 +1,23 @@
 @import "tailwindcss";
 
 body {
-  background: linear-gradient(to bottom right, #f9fafb, #f3f4f6);
+  background: linear-gradient(to bottom right, #f8fafc, #f1f5f9);
   min-height: 100vh;
 }
 
 .btn-primary {
-  background-color: #2563eb;
+  background: linear-gradient(to right, #6366f1, #9333ea);
   color: white;
   font-weight: 600;
   padding: 0.5rem 1rem;
   border-radius: 0.5rem;
   transition: all 0.2s;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #1d4ed8;
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.4);
 }
 
 .btn-primary:disabled {
@@ -65,15 +65,17 @@ body {
 
 .card {
   background-color: white;
-  border-radius: 0.75rem;
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   padding: 1.5rem;
-  border: 1px solid #e5e7eb;
-  transition: all 0.3s;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s;
 }
 
 .card:hover {
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+  box-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.1);
+  border-color: #a5b4fc;
+  transform: translateY(-4px);
 }
 
 .input-field {
@@ -87,7 +89,7 @@ body {
 
 .input-field:focus {
   border-color: transparent;
-  box-shadow: 0 0 0 2px #3b82f6;
+  box-shadow: 0 0 0 2px #6366f1;
 }
 
 /* Custom scrollbar */

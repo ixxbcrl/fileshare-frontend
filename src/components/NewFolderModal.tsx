@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { FolderPlus, X, Loader2 } from 'lucide-react';
+import { FolderPlus, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Button } from './ui/button';
 import { fileApi } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -57,32 +59,21 @@ const NewFolderModal = ({ isOpen, onClose, onSuccess, parentDirectoryId }: NewFo
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 animate-fade-in">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate-slide-up">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="bg-blue-100 p-2 rounded-lg">
-              <FolderPlus className="w-6 h-6 text-blue-600" />
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-100 p-2 rounded-lg">
+              <FolderPlus className="w-6 h-6 text-indigo-600" />
             </div>
-            <h2 className="text-xl font-bold text-gray-800">New Folder</h2>
+            <DialogTitle>New Folder</DialogTitle>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            disabled={creating}
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
+        </DialogHeader>
 
-        {/* Body */}
-        <form onSubmit={handleSubmit} className="p-6">
-          <div>
-            <label htmlFor="folderName" className="block text-sm font-semibold text-gray-700 mb-2">
+        <form onSubmit={handleSubmit}>
+          <div className="py-4">
+            <label htmlFor="folderName" className="block text-sm font-semibold text-slate-700 mb-2">
               Folder Name
             </label>
             <input
@@ -97,42 +88,41 @@ const NewFolderModal = ({ isOpen, onClose, onSuccess, parentDirectoryId }: NewFo
               disabled={creating}
               maxLength={255}
             />
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-slate-500">
               {folderName.length}/255 characters
             </p>
           </div>
 
-          {/* Actions */}
-          <div className="flex space-x-3 mt-6">
-            <button
+          <DialogFooter>
+            <Button
               type="button"
               onClick={onClose}
-              className="btn-secondary flex-1"
+              variant="outline"
               disabled={creating}
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="btn-primary flex-1 flex items-center justify-center space-x-2"
               disabled={creating || !folderName.trim()}
+              className="bg-gradient-to-r from-indigo-500 to-purple-600"
             >
               {creating ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Creating...</span>
+                  Creating...
                 </>
               ) : (
                 <>
                   <FolderPlus className="w-4 h-4" />
-                  <span>Create Folder</span>
+                  Create Folder
                 </>
               )}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
