@@ -37,6 +37,11 @@ export interface CreateDirectoryResponse {
   message: string;
 }
 
+export interface MoveResponse {
+  success: boolean;
+  message: string;
+}
+
 export interface BulkDeleteResponse {
   success: boolean;
   deleted_files: number;

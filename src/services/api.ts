@@ -8,6 +8,7 @@ import type {
   CreateDirectoryResponse,
   BulkDeleteResponse,
   DeleteResponse,
+  MoveResponse,
   HealthResponse,
 } from '../types';
 
@@ -137,6 +138,26 @@ export const fileApi = {
    */
   deleteDirectory: async (directoryId: string): Promise<DeleteResponse> => {
     const response = await apiClient.delete<DeleteResponse>(`/api/directories/${directoryId}`);
+    return response.data;
+  },
+
+  /**
+   * Move a file to a different directory
+   */
+  moveFile: async (fileId: string, targetDirectoryId: string): Promise<MoveResponse> => {
+    const response = await apiClient.patch<MoveResponse>(`/api/files/${fileId}`, {
+      parent_directory_id: targetDirectoryId,
+    });
+    return response.data;
+  },
+
+  /**
+   * Move a directory to a different parent directory
+   */
+  moveDirectory: async (directoryId: string, targetDirectoryId: string): Promise<MoveResponse> => {
+    const response = await apiClient.patch<MoveResponse>(`/api/directories/${directoryId}`, {
+      parent_id: targetDirectoryId,
+    });
     return response.data;
   },
 

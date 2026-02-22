@@ -34,6 +34,12 @@ function App() {
   // Mobile sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [globalFiles, setGlobalFiles] = useState<FileMetadata[]>([]);
+  const [globalDirectories, setGlobalDirectories] = useState<DirectoryMetadata[]>([]);
+  const isSearching = searchQuery.trim() !== '';
+
   const fetchFiles = useCallback(async (directoryId?: string | null, showToast = false) => {
     try {
       setRefreshing(true);
@@ -60,6 +66,41 @@ function App() {
       setRefreshing(false);
     }
   }, [currentDirectoryId]);
+
+  const fetchAllFiles = useCallback(async () => {
+    try {
+      const allFiles: FileMetadata[] = [];
+      const allDirs: DirectoryMetadata[] = [];
+
+      // BFS: start at root (null), fan out into every subdirectory
+      const queue: (string | null)[] = [null];
+      while (queue.length > 0) {
+        const dirId = queue.shift()!;
+        const params = dirId ? `?parent_directory_id=${dirId}` : '';
+        const response = await fetch(`/api/files${params}`);
+        if (!response.ok) continue;
+        const data = await response.json();
+        allFiles.push(...(data.files || []));
+        allDirs.push(...(data.directories || []));
+        for (const dir of (data.directories || [])) {
+          queue.push(dir.id);
+        }
+      }
+
+      setGlobalFiles(allFiles);
+      setGlobalDirectories(allDirs);
+    } catch (error) {
+      console.error('Error fetching all files:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isSearching) return;
+    const timer = setTimeout(() => {
+      fetchAllFiles();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, isSearching, fetchAllFiles]);
 
   const checkHealth = async () => {
     try {
@@ -282,12 +323,13 @@ function App() {
               selectedDirectoryIds={selectedDirectoryIds}
               onClearSelection={handleClearSelection}
               onDeleteSuccess={handleBulkDeleteSuccess}
+              availableFolders={directories}
             />
 
             {/* File List */}
             <FileList
-              files={files}
-              directories={directories}
+              files={isSearching ? globalFiles : files}
+              directories={isSearching ? globalDirectories : directories}
               loading={loading}
               onDelete={handleDelete}
               onNavigate={handleNavigate}
@@ -295,6 +337,9 @@ function App() {
               selectedFileIds={selectedFileIds}
               selectedDirectoryIds={selectedDirectoryIds}
               onSelectionToggle={handleSelectionToggle}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              isGlobalSearch={isSearching}
             />
           </div>
         </div>

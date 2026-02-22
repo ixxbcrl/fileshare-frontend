@@ -4,15 +4,21 @@ import { Upload, X, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { formatFileSize } from '../utils/format';
 import toast from 'react-hot-toast';
+import { fileApi } from '../services/api';
 
 interface FileUploadProps {
   onUploadSuccess: () => void;
   currentDirectoryId: string | null;
 }
 
+const mergeFiles = (existing: File[], incoming: File[]): File[] => {
+  const names = new Set(existing.map(f => f.name));
+  return [...existing, ...incoming.filter(f => !names.has(f.name))];
+};
+
 const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [description, setDescription] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const uploadTotalRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -31,17 +37,16 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      setSelectedFile(files[0]);
+    const incoming = Array.from(e.dataTransfer.files);
+    if (incoming.length > 0) {
+      setSelectedFiles(prev => mergeFiles(prev, incoming));
     }
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      setSelectedFile(files[0]);
+    const incoming = Array.from(e.target.files || []);
+    if (incoming.length > 0) {
+      setSelectedFiles(prev => mergeFiles(prev, incoming));
     }
   };
 
@@ -49,57 +54,54 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
     fileInputRef.current?.click();
   };
 
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-    if (fileInputRef.current) {
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    if (selectedFiles.length <= 1 && fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) {
-      toast.error('Please select a file to upload');
+    if (selectedFiles.length === 0) {
+      toast.error('Please select at least one file to upload');
       return;
     }
 
     setUploading(true);
     setUploadProgress(0);
 
-    try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      if (description.trim()) {
-        formData.append('description', description.trim());
-      }
-      if (currentDirectoryId) {
-        formData.append('parent_directory_id', currentDirectoryId);
-      }
+    const total = selectedFiles.length;
+    uploadTotalRef.current = total;
+    let completed = 0;
+    let failed = 0;
+    const CONCURRENCY = 3;
 
-      const response = await fetch('/api/files', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
+    for (let i = 0; i < total; i += CONCURRENCY) {
+      const batch = selectedFiles.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(file => fileApi.uploadFile(file, undefined, currentDirectoryId))
+      );
+      for (const result of results) {
+        if (result.status === 'fulfilled') completed++;
+        else { failed++; console.error('Upload failed:', result.reason); }
+        setUploadProgress(Math.round(((completed + failed) / total) * 100));
       }
-
-      await response.json();
-
-      toast.success('File uploaded successfully!');
-      setSelectedFile(null);
-      setDescription('');
-      setUploadProgress(0);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      onUploadSuccess();
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload file. Please try again.');
-    } finally {
-      setUploading(false);
     }
+
+    if (completed > 0) onUploadSuccess();
+
+    if (failed === 0) {
+      toast.success(total === 1 ? 'File uploaded successfully!' : `${completed} files uploaded successfully!`);
+    } else if (completed === 0) {
+      toast.error('All uploads failed. Please try again.');
+    } else {
+      toast.error(`${completed} uploaded, ${failed} failed.`);
+    }
+
+    setSelectedFiles([]);
+    setUploadProgress(0);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setUploading(false);
   };
 
   return (
@@ -123,6 +125,7 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
         <input
           ref={fileInputRef}
           type="file"
+          multiple
           onChange={handleFileChange}
           className="hidden"
           disabled={uploading}
@@ -135,64 +138,46 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
             } transition-colors duration-200`}
           />
 
-          {selectedFile ? (
-            <div className="w-full">
-              <div className="flex items-center justify-between bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-sm">
-                <div className="flex-1 text-left min-w-0">
-                  <p className="font-semibold text-slate-900 truncate text-xs sm:text-sm">
-                    {selectedFile.name}
-                  </p>
-                  <p className="text-xs text-slate-600">
-                    {formatFileSize(selectedFile.size)}
-                  </p>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveFile();
-                  }}
-                  className="ml-3 p-2 hover:bg-slate-100 active:bg-slate-200 rounded-full transition-colors flex-shrink-0"
-                  disabled={uploading}
-                >
-                  <X className="w-4 h-4 text-slate-600" />
-                </button>
+          {selectedFiles.length > 0 ? (
+            <div className="w-full" onClick={e => e.stopPropagation()}>
+              <p className="text-xs text-white/80 mb-2 text-left">
+                {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
+                ({formatFileSize(selectedFiles.reduce((s, f) => s + f.size, 0))})
+              </p>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {selectedFiles.map((file, idx) => (
+                  <div key={`${file.name}-${idx}`} className="flex items-center justify-between bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm">
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="font-semibold text-slate-900 truncate text-xs sm:text-sm">{file.name}</p>
+                      <p className="text-xs text-slate-600">{formatFileSize(file.size)}</p>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); handleRemoveFile(idx); }} className="ml-3 p-2 hover:bg-slate-100 active:bg-slate-200 rounded-full transition-colors flex-shrink-0" disabled={uploading}>
+                      <X className="w-4 h-4 text-slate-600" />
+                    </button>
+                  </div>
+                ))}
               </div>
+              <p className="text-xs text-white/60 mt-2 text-center">Drop more or click to add more</p>
             </div>
           ) : (
             <div className="space-y-1">
               <p className="font-semibold text-white text-sm sm:text-base">
-                <span className="hidden sm:inline">Drop your file here or </span>
+                <span className="hidden sm:inline">Drop your files here or </span>
                 <span className="sm:hidden">Tap to </span>
                 <span className="hidden sm:inline">click to </span>browse
               </p>
-              <p className="text-xs sm:text-sm text-white/80">
-                Any file type supported
-              </p>
+              <p className="text-xs sm:text-sm text-white/80">Any file type supported · Select multiple</p>
             </div>
           )}
         </div>
       </div>
-
-      {/* Description Input */}
-      {selectedFile && (
-        <div className="mt-3 sm:mt-4">
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Add a description (optional)..."
-            className="w-full px-3 sm:px-4 py-2.5 sm:py-2 bg-white/90 backdrop-blur-sm border border-white/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-white text-slate-900 placeholder-slate-500 text-sm"
-            disabled={uploading}
-          />
-        </div>
-      )}
 
       {/* Upload Progress */}
       {uploading && uploadProgress > 0 && (
         <div className="mt-3 sm:mt-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs sm:text-sm font-semibold text-white">
-              Uploading...
+              Uploading {Math.min(Math.round((uploadProgress / 100) * uploadTotalRef.current), uploadTotalRef.current)} of {uploadTotalRef.current}...
             </span>
             <span className="text-xs sm:text-sm font-semibold text-white">
               {uploadProgress}%
@@ -208,14 +193,14 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
       )}
 
       {/* Upload Button */}
-      {selectedFile && (
+      {selectedFiles.length > 0 && (
         <div className="mt-3 sm:mt-4">
           <Button
             onClick={(e) => {
               e.stopPropagation();
               handleUpload();
             }}
-            disabled={!selectedFile || uploading}
+            disabled={selectedFiles.length === 0 || uploading}
             className="w-full bg-white hover:bg-white/90 active:bg-white/80 text-indigo-600 shadow-lg min-h-[44px] text-sm sm:text-base"
           >
             {uploading ? (
@@ -226,7 +211,7 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
             ) : (
               <>
                 <Upload className="w-4 h-4" />
-                Upload File
+                {selectedFiles.length === 1 ? 'Upload File' : `Upload ${selectedFiles.length} Files`}
               </>
             )}
           </Button>
