@@ -67,3 +67,8 @@ export interface BreadcrumbItem {
   id: string | null;
   name: string;
 }
+
+export interface RecentFilesResponse {
+  files: FileMetadata[];
+  total: number;
+}

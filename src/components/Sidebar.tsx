@@ -1,109 +1,99 @@
 import React from 'react';
-import { FolderPlus, Files, HardDrive, Activity } from 'lucide-react';
-import { Button } from './ui/button';
-import { Progress } from './ui/progress';
-import { formatFileSize } from '../utils/format';
+
+type ViewType = 'home' | 'all-files' | 'recent';
 
 interface SidebarProps {
-  currentDirectoryId: string | null;
-  onNavigate: (directoryId: string | null) => void;
+  currentView: ViewType;
+  onViewChange: (view: ViewType) => void;
   onNewFolder: () => void;
   totalItems: number;
   totalSize: number;
-  healthStatus: 'healthy' | 'unhealthy' | 'checking';
+  isOpen: boolean;
+  onClose: () => void;
 }
 
+const NAV_ITEMS = [
+  { icon: 'folder', label: 'All Files', view: 'all-files' as ViewType },
+  { icon: 'history', label: 'Recent', view: 'recent' as ViewType },
+  { icon: 'group', label: 'Shared', view: null },
+  { icon: 'star', label: 'Starred', view: null },
+  { icon: 'delete', label: 'Trash', view: null },
+];
+
 export const Sidebar: React.FC<SidebarProps> = ({
-  currentDirectoryId,
-  onNavigate,
+  currentView,
+  onViewChange,
   onNewFolder,
-  totalItems,
-  totalSize,
-  healthStatus,
+  isOpen,
+  onClose,
 }) => {
-  const storageLimit = 10 * 1024 * 1024 * 1024; // 10GB example limit
-  const usagePercentage = (totalSize / storageLimit) * 100;
+  const handleNavClick = (view: ViewType | null) => {
+    if (!view) return;
+    onViewChange(view);
+    onClose();
+  };
 
   return (
-    <div className="w-64 sm:w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col border-r border-slate-700 h-full">
-      {/* Logo */}
-      <div className="p-6 border-b border-slate-700">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <HardDrive className="w-8 h-8 text-white" />
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold">FileShare</h1>
-            <p className="text-xs text-slate-400">Cloud Storage</p>
-          </div>
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-30 md:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      <nav
+        className={`h-screen w-64 flex flex-col pt-24 pb-8 px-4 fixed left-0 top-0 bg-[#fafaf5] z-40 font-sans text-sm font-medium transition-transform duration-300 ease-in-out
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+      >
+        {/* Header */}
+        <div className="px-4 mb-8">
+          <h2 className="text-xs uppercase tracking-widest text-outline-variant font-semibold mb-1">
+            Library
+          </h2>
+          <p className="text-[10px] text-outline-variant opacity-70">Personal Archive</p>
         </div>
-      </div>
 
-      {/* New Folder Button */}
-      <div className="p-4">
-        <Button
-          onClick={onNewFolder}
-          className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg shadow-indigo-500/30"
-        >
-          <FolderPlus className="w-4 h-4" />
-          New Folder
-        </Button>
-      </div>
+        {/* Nav items */}
+        <div className="space-y-1 flex-grow">
+          {NAV_ITEMS.map(({ icon, label, view }) => {
+            const isActive = view !== null && currentView === view;
+            return (
+              <button
+                key={label}
+                onClick={() => handleNavClick(view)}
+                className={`w-full flex items-center gap-3 py-2 px-4 transition-all duration-300 ease-out text-left ${
+                  isActive
+                    ? 'border-l-2 border-primary text-on-surface'
+                    : 'text-on-surface-variant hover:bg-surface-container-low pl-[18px]'
+                } ${!view ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                  {icon}
+                </span>
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-2">
-        <button
-          onClick={() => onNavigate(null)}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-            currentDirectoryId === null
-              ? 'bg-gradient-to-r from-indigo-500/20 to-purple-600/20 text-white border border-indigo-500/30'
-              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-          }`}
-        >
-          <Files className="w-5 h-5" />
-          <span className="font-medium">All Files</span>
-        </button>
-      </nav>
-
-      {/* Storage Stats */}
-      <div className="p-4 border-t border-slate-700 space-y-4">
-        {/* Health Status */}
-        <div className="flex items-center gap-2 text-sm">
-          <Activity className="w-4 h-4" />
-          <span className="text-slate-400">Status:</span>
-          <span
-            className={`font-semibold ${
-              healthStatus === 'healthy'
-                ? 'text-green-400'
-                : healthStatus === 'unhealthy'
-                ? 'text-red-400'
-                : 'text-yellow-400'
-            }`}
+        {/* New Folder button */}
+        <div className="mt-auto px-4">
+          <button
+            onClick={() => { onNewFolder(); onClose(); }}
+            className="w-full bg-primary text-on-primary py-3 px-4 rounded-sm font-medium text-xs flex items-center justify-center gap-2 hover:bg-primary-dim transition-colors active:scale-[0.98]"
           >
-            {healthStatus === 'healthy' ? 'Healthy' : healthStatus === 'unhealthy' ? 'Unhealthy' : 'Checking...'}
-          </span>
+            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add</span>
+            New Folder
+          </button>
         </div>
 
-        {/* Storage Usage */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-400">Storage</span>
-            <span className="text-white font-medium">{usagePercentage.toFixed(1)}%</span>
-          </div>
-          <Progress value={usagePercentage} className="h-2" />
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>{formatFileSize(totalSize)}</span>
-            <span>{formatFileSize(storageLimit)}</span>
-          </div>
-        </div>
-
-        {/* File Count */}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-400">Total Items</span>
-          <span className="text-white font-medium">{totalItems}</span>
-        </div>
-      </div>
-    </div>
+        {/* Right border */}
+        <div className="bg-surface-container w-[1px] h-full absolute right-0 top-0" />
+      </nav>
+    </>
   );
 };
+
+export default Sidebar;

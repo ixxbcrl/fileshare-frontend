@@ -1,25 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import {
-  Download,
-  Trash2,
-  File,
-  FileText,
-  Image,
-  Video,
-  Music,
-  Archive,
-  Loader2,
-  Folder,
-  FolderOpen,
-  Eye,
-  X,
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import type { FileMetadata, DirectoryMetadata } from '../types';
 import { formatFileSize, formatRelativeTime, getFileCategory } from '../utils/format';
 import toast from 'react-hot-toast';
@@ -34,6 +26,22 @@ interface FileTableRowProps {
   onSelectionToggle: (id: string, isDirectory: boolean) => void;
 }
 
+const getMaterialIcon = (isDirectory: boolean, mimeType: string | null | undefined): string => {
+  if (isDirectory) return 'folder';
+  const category = getFileCategory(mimeType ?? null);
+  switch (category) {
+    case 'PDF': return 'picture_as_pdf';
+    case 'Document': return 'description';
+    case 'Spreadsheet': return 'table_chart';
+    case 'Video': return 'video_library';
+    case 'Audio': return 'audio_file';
+    case 'Image': return 'image';
+    case 'Archive': return 'folder_zip';
+    case 'Text': return 'article';
+    default: return 'draft';
+  }
+};
+
 const FileTableRow = ({
   item,
   isDirectory,
@@ -45,7 +53,6 @@ const FileTableRow = ({
 }: FileTableRowProps) => {
   const [downloading, setDownloading] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
@@ -53,62 +60,21 @@ const FileTableRow = ({
 
   const directoryItem = isDirectory ? (item as DirectoryMetadata) : null;
   const fileItem = !isDirectory ? (item as FileMetadata) : null;
+  const isImage = fileItem && getFileCategory(fileItem.mime_type) === 'Image';
 
   useEffect(() => {
     return () => {
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-      }
-      // Clean up image preview URL when component unmounts
-      if (imagePreviewUrl) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
     };
   }, [imagePreviewUrl]);
 
-  const getFileIcon = () => {
-    if (isDirectory) {
-      return isHovered ? (
-        <FolderOpen className="w-5 h-5 text-yellow-500" />
-      ) : (
-        <Folder className="w-5 h-5 text-yellow-500" />
-      );
-    }
-
-    if (!fileItem) return <File className="w-5 h-5 text-gray-500" />;
-
-    const category = getFileCategory(fileItem.mime_type);
-    const iconClass = 'w-5 h-5';
-
-    switch (category) {
-      case 'Image':
-        return <Image className={`${iconClass} text-purple-500`} />;
-      case 'Video':
-        return <Video className={`${iconClass} text-red-500`} />;
-      case 'Audio':
-        return <Music className={`${iconClass} text-green-500`} />;
-      case 'Archive':
-        return <Archive className={`${iconClass} text-yellow-600`} />;
-      case 'PDF':
-      case 'Document':
-      case 'Text':
-        return <FileText className={`${iconClass} text-blue-500`} />;
-      default:
-        return <File className={`${iconClass} text-gray-500`} />;
-    }
-  };
-
   const handleDownload = async () => {
     if (!fileItem) return;
-
     setDownloading(true);
     try {
       const response = await fetch(`/api/files/${fileItem.id}/download`);
-
-      if (!response.ok) {
-        throw new Error('Download failed');
-      }
-
+      if (!response.ok) throw new Error('Download failed');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -118,10 +84,8 @@ const FileTableRow = ({
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-
       toast.success('File downloaded successfully!');
-    } catch (error) {
-      console.error('Download error:', error);
+    } catch {
       toast.error('Failed to download file');
     } finally {
       setDownloading(false);
@@ -130,20 +94,13 @@ const FileTableRow = ({
 
   const handleShowImage = async () => {
     if (!fileItem) return;
-
     try {
       const response = await fetch(`/api/files/${fileItem.id}/download`);
-
-      if (!response.ok) {
-        throw new Error('Failed to load image');
-      }
-
+      if (!response.ok) throw new Error('Failed to load image');
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      setImagePreviewUrl(url);
+      setImagePreviewUrl(window.URL.createObjectURL(blob));
       setShowImagePreview(true);
-    } catch (error) {
-      console.error('Image preview error:', error);
+    } catch {
       toast.error('Failed to load image');
     }
   };
@@ -156,40 +113,25 @@ const FileTableRow = ({
     }
   };
 
-  const isImage = fileItem && getFileCategory(fileItem.mime_type) === 'Image';
-
   const handleDelete = async () => {
     const itemName = isDirectory
       ? (item as DirectoryMetadata).name
       : (item as FileMetadata).original_filename;
-
     const confirmMessage = isDirectory
-      ? `Are you sure you want to delete the folder "${itemName}" and all its contents?`
-      : `Are you sure you want to delete "${itemName}"?`;
-
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+      ? `Delete folder "${itemName}" and all its contents?`
+      : `Delete "${itemName}"?`;
+    if (!window.confirm(confirmMessage)) return;
 
     setDeleting(true);
     try {
       const response = await fetch(
         isDirectory ? `/api/directories/${item.id}` : `/api/files/${item.id}`,
-        {
-          method: 'DELETE',
-        }
+        { method: 'DELETE' }
       );
-
-      if (!response.ok) {
-        throw new Error('Delete failed');
-      }
-
-      toast.success(
-        isDirectory ? 'Folder deleted successfully!' : 'File deleted successfully!'
-      );
+      if (!response.ok) throw new Error('Delete failed');
+      toast.success(isDirectory ? 'Folder deleted!' : 'File deleted!');
       onDelete(item.id, isDirectory);
-    } catch (error) {
-      console.error('Delete error:', error);
+    } catch {
       toast.error('Failed to delete ' + (isDirectory ? 'folder' : 'file'));
     } finally {
       setDeleting(false);
@@ -201,10 +143,6 @@ const FileTableRow = ({
       longPressTriggeredRef.current = false;
       return;
     }
-
-    // For folders: clicking the row navigates into the folder
-    // For files: clicking the row selects the file
-    // (The checkbox will handle selection for both when clicked directly)
     if (isDirectory && onNavigate) {
       onNavigate(item.id);
     } else {
@@ -214,7 +152,6 @@ const FileTableRow = ({
 
   const handleTouchStart = () => {
     if (selectionMode) return;
-
     longPressTriggeredRef.current = false;
     longPressTimerRef.current = setTimeout(() => {
       longPressTriggeredRef.current = true;
@@ -229,164 +166,140 @@ const FileTableRow = ({
     }
   };
 
+  const mimeLabel = isDirectory
+    ? 'DIRECTORY'
+    : (getFileCategory(fileItem?.mime_type ?? null)).toUpperCase();
+
+  const icon = getMaterialIcon(isDirectory, fileItem?.mime_type);
+
   return (
     <tr
-      className={`transition-colors cursor-pointer ${
-        isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
+      className={`group transition-colors duration-300 cursor-pointer ${
+        isSelected ? 'bg-primary-container/20' : 'hover:bg-surface-container-low'
       }`}
       onClick={handleClick}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Checkbox Column */}
-      <td
-        className="px-3 sm:px-6 py-3 sm:py-4 w-12"
-        onClick={(e) => {
-          e.stopPropagation();
-          if (selectionMode || isHovered) {
-            onSelectionToggle(item.id, isDirectory);
-          }
-        }}
-      >
-        {(selectionMode || isHovered) && (
+      {/* Checkbox */}
+      {selectionMode && (
+        <td
+          className="py-4 pl-2 w-10"
+          onClick={(e) => { e.stopPropagation(); onSelectionToggle(item.id, isDirectory); }}
+        >
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={(e) => {
-              e.stopPropagation();
-            }}
-            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            onChange={() => {}}
+            className="w-4 h-4 cursor-pointer accent-primary"
           />
-        )}
-      </td>
+        </td>
+      )}
 
-      {/* Name Column */}
-      <td className="px-3 sm:px-6 py-3 sm:py-4">
-        <div className="flex items-center space-x-2 sm:space-x-3">
-          {getFileIcon()}
+      {/* Name */}
+      <td className="py-6 pl-2">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-sm bg-surface-container flex items-center justify-center text-primary flex-shrink-0">
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+              {icon}
+            </span>
+          </div>
           <div className="min-w-0">
-            <p className={`text-sm sm:text-base font-medium text-gray-800 truncate ${isDirectory ? 'font-semibold' : ''}`}>
+            <div className="text-sm font-semibold text-on-background leading-none mb-1 truncate">
               {isDirectory ? directoryItem?.name : fileItem?.original_filename}
-            </p>
-            {!isDirectory && fileItem?.description && (
-              <p className="text-xs sm:text-sm text-gray-500 truncate">{fileItem.description}</p>
-            )}
+            </div>
+            <div className="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider">
+              {mimeLabel}
+            </div>
           </div>
         </div>
       </td>
 
-      {/* Size Column */}
-      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">
+      {/* Status */}
+      <td className="py-6">
+        <span className="px-2 py-1 bg-primary-container text-on-primary-container text-[10px] font-bold uppercase tracking-wider rounded-sm">
+          Synced
+        </span>
+      </td>
+
+      {/* Size */}
+      <td className="py-6 text-sm text-on-surface-variant font-medium hidden sm:table-cell">
         {isDirectory
           ? formatFileSize(directoryItem?.total_size || 0)
           : formatFileSize(fileItem?.file_size || 0)}
       </td>
 
-      {/* Type/Items Column */}
-      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden md:table-cell">
-        {isDirectory
-          ? `${directoryItem?.file_count || 0} item(s)`
-          : getFileCategory(fileItem?.mime_type || null)}
-      </td>
-
-      {/* Date Column */}
-      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden lg:table-cell">
+      {/* Modified */}
+      <td className="py-6 text-sm text-on-surface-variant font-medium hidden md:table-cell">
         {isDirectory
           ? formatRelativeTime(directoryItem?.updated_at || '')
           : formatRelativeTime(fileItem?.uploaded_at || '')}
       </td>
 
-      {/* Actions Column */}
-      {!selectionMode && (
-        <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
-          <div className="flex items-center justify-end space-x-1 sm:space-x-2">
-            {isDirectory && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onNavigate) onNavigate(item.id);
-                }}
-                className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
-                title="Open Folder"
-              >
-                <FolderOpen className="w-5 h-5" />
-              </button>
-            )}
-            {isImage && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleShowImage();
-                }}
-                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                title="Show Image"
-              >
-                <Eye className="w-5 h-5" />
-              </button>
-            )}
-            {!isDirectory && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDownload();
-                }}
-                disabled={downloading || deleting}
-                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-                title="Download"
-              >
-                {downloading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Download className="w-5 h-5" />
-                )}
-              </button>
-            )}
+      {/* Actions */}
+      <td className="py-6 text-right pr-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete();
-              }}
-              disabled={downloading || deleting}
-              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-              title="Delete"
+              className="material-symbols-outlined text-on-surface-variant hover:text-on-background transition-colors p-2"
+              style={{ fontSize: '20px' }}
+              onClick={(e) => e.stopPropagation()}
             >
-              {deleting ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Trash2 className="w-5 h-5" />
-              )}
+              {(downloading || deleting) ? '' : 'more_horiz'}
             </button>
-          </div>
-        </td>
-      )}
+          </DropdownMenuTrigger>
+          {!(downloading || deleting) && (
+            <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+              {isDirectory && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); if (onNavigate) onNavigate(item.id); }}>
+                  <span className="material-symbols-outlined mr-2" style={{ fontSize: '16px' }}>folder_open</span>
+                  Open Folder
+                </DropdownMenuItem>
+              )}
+              {isImage && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleShowImage(); }}>
+                  <span className="material-symbols-outlined mr-2" style={{ fontSize: '16px' }}>visibility</span>
+                  Preview
+                </DropdownMenuItem>
+              )}
+              {!isDirectory && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownload(); }}>
+                  {downloading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : (
+                    <span className="material-symbols-outlined mr-2" style={{ fontSize: '16px' }}>download</span>
+                  )}
+                  Download
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                className="text-error focus:text-error"
+              >
+                {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : (
+                  <span className="material-symbols-outlined mr-2" style={{ fontSize: '16px' }}>delete</span>
+                )}
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          )}
+        </DropdownMenu>
+        {(downloading || deleting) && <Loader2 className="w-4 h-4 animate-spin inline text-on-surface-variant" />}
+      </td>
 
       {/* Image Preview Modal */}
-      <Dialog open={showImagePreview} onOpenChange={handleCloseImagePreview}>
-        <DialogContent className="max-w-4xl max-h-[95vh] sm:max-h-[90vh] p-0 overflow-hidden w-[95vw] sm:w-auto">
-          <DialogHeader className="p-4 sm:p-6 pb-2">
-            <DialogTitle className="flex items-center justify-between">
-              <span className="truncate text-sm sm:text-base">{fileItem?.original_filename}</span>
-              <button
-                onClick={handleCloseImagePreview}
-                className="ml-2 sm:ml-4 p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="p-4 sm:p-6 pt-2 overflow-auto max-h-[calc(95vh-60px)] sm:max-h-[calc(90vh-80px)]">
-            {imagePreviewUrl && (
-              <img
-                src={imagePreviewUrl}
-                alt={fileItem?.original_filename || 'Preview'}
-                className="w-full h-auto rounded-lg"
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {isImage && (
+        <Dialog open={showImagePreview} onOpenChange={handleCloseImagePreview}>
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+            <DialogHeader className="p-6 pb-2">
+              <DialogTitle className="text-sm truncate">{fileItem?.original_filename}</DialogTitle>
+            </DialogHeader>
+            <div className="p-6 pt-2 overflow-auto max-h-[calc(90vh-80px)]">
+              {imagePreviewUrl && (
+                <img src={imagePreviewUrl} alt={fileItem?.original_filename || 'Preview'} className="w-full h-auto rounded-sm" />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </tr>
   );
 };

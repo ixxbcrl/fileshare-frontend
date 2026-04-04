@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { FolderPlus, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Button } from './ui/button';
 import { fileApi } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -26,54 +25,40 @@ const NewFolderModal = ({ isOpen, onClose, onSuccess, parentDirectoryId }: NewFo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const trimmedName = folderName.trim();
-    if (!trimmedName) {
-      toast.error('Folder name cannot be empty');
-      return;
-    }
-
-    if (trimmedName.length > 255) {
-      toast.error('Folder name is too long (max 255 characters)');
-      return;
-    }
+    if (!trimmedName) { toast.error('Folder name cannot be empty'); return; }
+    if (trimmedName.length > 255) { toast.error('Folder name is too long (max 255 characters)'); return; }
 
     setCreating(true);
     try {
       await fileApi.createDirectory(trimmedName, parentDirectoryId);
-      toast.success(`Folder "${trimmedName}" created successfully!`);
+      toast.success(`Folder "${trimmedName}" created!`);
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Error creating folder:', error);
-      const errorMessage = error.response?.data?.error || 'Failed to create folder';
-      toast.error(errorMessage);
+      toast.error(error.response?.data?.error || 'Failed to create folder');
     } finally {
       setCreating(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    }
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-surface-container-lowest border border-outline-variant/20">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="bg-indigo-100 p-2 rounded-lg">
-              <FolderPlus className="w-6 h-6 text-indigo-600" />
+            <div className="bg-primary-container p-2 rounded-sm">
+              <span className="material-symbols-outlined text-primary" style={{ fontSize: '22px' }}>
+                create_new_folder
+              </span>
             </div>
-            <DialogTitle>New Folder</DialogTitle>
+            <DialogTitle className="text-on-surface font-semibold tracking-tight">New Folder</DialogTitle>
           </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <div className="py-4">
-            <label htmlFor="folderName" className="block text-sm font-semibold text-slate-700 mb-2">
+            <label htmlFor="folderName" className="block text-sm font-medium text-on-surface mb-2">
               Folder Name
             </label>
             <input
@@ -82,43 +67,37 @@ const NewFolderModal = ({ isOpen, onClose, onSuccess, parentDirectoryId }: NewFo
               type="text"
               value={folderName}
               onChange={(e) => setFolderName(e.target.value)}
-              onKeyDown={handleKeyDown}
+              onKeyDown={(e) => e.key === 'Escape' && onClose()}
               placeholder="Enter folder name..."
-              className="input-field"
+              className="w-full bg-surface-container-low border-none rounded-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary text-on-surface placeholder:text-outline-variant"
               disabled={creating}
               maxLength={255}
             />
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-on-surface-variant">
               {folderName.length}/255 characters
             </p>
           </div>
 
           <DialogFooter>
-            <Button
+            <button
               type="button"
               onClick={onClose}
-              variant="outline"
               disabled={creating}
+              className="px-4 py-2 text-sm font-medium text-on-surface-variant border border-outline-variant rounded-sm hover:bg-surface-container transition-colors disabled:opacity-50"
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
               disabled={creating || !folderName.trim()}
-              className="bg-gradient-to-r from-indigo-500 to-purple-600"
+              className="px-4 py-2 text-sm font-medium bg-primary text-on-primary rounded-sm hover:bg-primary-dim transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               {creating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Creating...
-                </>
+                <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
               ) : (
-                <>
-                  <FolderPlus className="w-4 h-4" />
-                  Create Folder
-                </>
+                <><span className="material-symbols-outlined" style={{ fontSize: '16px' }}>create_new_folder</span> Create Folder</>
               )}
-            </Button>
+            </button>
           </DialogFooter>
         </form>
       </DialogContent>

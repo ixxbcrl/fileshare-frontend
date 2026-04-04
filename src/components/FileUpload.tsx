@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
-import { Upload, X, Loader2 } from 'lucide-react';
-import { Button } from './ui/button';
+import { Loader2 } from 'lucide-react';
 import { formatFileSize } from '../utils/format';
 import toast from 'react-hot-toast';
 import { fileApi } from '../services/api';
@@ -38,27 +37,17 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
     e.preventDefault();
     setIsDragging(false);
     const incoming = Array.from(e.dataTransfer.files);
-    if (incoming.length > 0) {
-      setSelectedFiles(prev => mergeFiles(prev, incoming));
-    }
+    if (incoming.length > 0) setSelectedFiles(prev => mergeFiles(prev, incoming));
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const incoming = Array.from(e.target.files || []);
-    if (incoming.length > 0) {
-      setSelectedFiles(prev => mergeFiles(prev, incoming));
-    }
-  };
-
-  const handleBrowseClick = () => {
-    fileInputRef.current?.click();
+    if (incoming.length > 0) setSelectedFiles(prev => mergeFiles(prev, incoming));
   };
 
   const handleRemoveFile = (index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-    if (selectedFiles.length <= 1 && fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (selectedFiles.length <= 1 && fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleUpload = async () => {
@@ -91,7 +80,7 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
     if (completed > 0) onUploadSuccess();
 
     if (failed === 0) {
-      toast.success(total === 1 ? 'File uploaded successfully!' : `${completed} files uploaded successfully!`);
+      toast.success(total === 1 ? 'File uploaded!' : `${completed} files uploaded!`);
     } else if (completed === 0) {
       toast.error('All uploads failed. Please try again.');
     } else {
@@ -106,21 +95,17 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
 
   return (
     <div>
-      {/* Drag and Drop Area */}
+      {/* Drop zone */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={handleBrowseClick}
-        className={`
-          relative border-2 border-dashed rounded-xl p-4 sm:p-6 text-center cursor-pointer
-          transition-all duration-300 ease-in-out min-h-[120px] sm:min-h-0
-          ${
-            isDragging
-              ? 'border-white bg-white/30 backdrop-blur-sm'
-              : 'border-white/40 bg-white/10 backdrop-blur-sm hover:border-white hover:bg-white/20 active:bg-white/25'
-          }
-        `}
+        onClick={() => fileInputRef.current?.click()}
+        className={`relative border-2 border-dashed rounded-sm p-6 text-center cursor-pointer transition-all duration-300 min-h-[120px] flex flex-col items-center justify-center ${
+          isDragging
+            ? 'border-primary bg-primary-container/20'
+            : 'border-outline-variant bg-surface-container-low hover:border-primary/60 hover:bg-surface-container'
+        }`}
       >
         <input
           ref={fileInputRef}
@@ -131,90 +116,83 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
           disabled={uploading}
         />
 
-        <div className="flex flex-col items-center space-y-2 sm:space-y-3">
-          <Upload
-            className={`w-10 h-10 sm:w-12 sm:h-12 ${
-              isDragging ? 'text-white' : 'text-white/80'
-            } transition-colors duration-200`}
-          />
+        <span className="material-symbols-outlined text-on-surface-variant mb-3" style={{ fontSize: '36px' }}>
+          cloud_upload
+        </span>
 
-          {selectedFiles.length > 0 ? (
-            <div className="w-full" onClick={e => e.stopPropagation()}>
-              <p className="text-xs text-white/80 mb-2 text-left">
-                {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
-                ({formatFileSize(selectedFiles.reduce((s, f) => s + f.size, 0))})
-              </p>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                {selectedFiles.map((file, idx) => (
-                  <div key={`${file.name}-${idx}`} className="flex items-center justify-between bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm">
-                    <div className="flex-1 text-left min-w-0">
-                      <p className="font-semibold text-slate-900 truncate text-xs sm:text-sm">{file.name}</p>
-                      <p className="text-xs text-slate-600">{formatFileSize(file.size)}</p>
-                    </div>
-                    <button onClick={(e) => { e.stopPropagation(); handleRemoveFile(idx); }} className="ml-3 p-2 hover:bg-slate-100 active:bg-slate-200 rounded-full transition-colors flex-shrink-0" disabled={uploading}>
-                      <X className="w-4 h-4 text-slate-600" />
-                    </button>
+        {selectedFiles.length > 0 ? (
+          <div className="w-full" onClick={e => e.stopPropagation()}>
+            <p className="text-xs text-on-surface-variant mb-3 text-center">
+              {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
+              ({formatFileSize(selectedFiles.reduce((s, f) => s + f.size, 0))})
+            </p>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
+              {selectedFiles.map((file, idx) => (
+                <div
+                  key={`${file.name}-${idx}`}
+                  className="flex items-center justify-between bg-surface-container-lowest rounded-sm px-3 py-2"
+                >
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="font-medium text-on-surface truncate text-sm">{file.name}</p>
+                    <p className="text-xs text-on-surface-variant">{formatFileSize(file.size)}</p>
                   </div>
-                ))}
-              </div>
-              <p className="text-xs text-white/60 mt-2 text-center">Drop more or click to add more</p>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleRemoveFile(idx); }}
+                    className="ml-3 p-1.5 hover:bg-surface-container rounded-sm transition-colors flex-shrink-0"
+                    disabled={uploading}
+                  >
+                    <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: '16px' }}>close</span>
+                  </button>
+                </div>
+              ))}
             </div>
-          ) : (
-            <div className="space-y-1">
-              <p className="font-semibold text-white text-sm sm:text-base">
-                <span className="hidden sm:inline">Drop your files here or </span>
-                <span className="sm:hidden">Tap to </span>
-                <span className="hidden sm:inline">click to </span>browse
-              </p>
-              <p className="text-xs sm:text-sm text-white/80">Any file type supported · Select multiple</p>
-            </div>
-          )}
-        </div>
+            <p className="text-xs text-on-surface-variant mt-3 text-center">Drop more or click to add more files</p>
+          </div>
+        ) : (
+          <div className="space-y-1 text-center">
+            <p className="font-medium text-on-surface text-sm">
+              Drop files here or <span className="text-primary">browse</span>
+            </p>
+            <p className="text-xs text-on-surface-variant">Any file type · Multiple files supported</p>
+          </div>
+        )}
       </div>
 
-      {/* Upload Progress */}
+      {/* Upload progress */}
       {uploading && uploadProgress > 0 && (
-        <div className="mt-3 sm:mt-4">
+        <div className="mt-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs sm:text-sm font-semibold text-white">
+            <span className="text-xs font-medium text-on-surface-variant">
               Uploading {Math.min(Math.round((uploadProgress / 100) * uploadTotalRef.current), uploadTotalRef.current)} of {uploadTotalRef.current}...
             </span>
-            <span className="text-xs sm:text-sm font-semibold text-white">
-              {uploadProgress}%
-            </span>
+            <span className="text-xs font-medium text-on-surface">{uploadProgress}%</span>
           </div>
-          <div className="w-full bg-white/20 rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-surface-container-high rounded-full h-1 overflow-hidden">
             <div
-              className="bg-white h-2 rounded-full transition-all duration-300"
+              className="bg-primary h-1 rounded-full transition-all duration-300"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
         </div>
       )}
 
-      {/* Upload Button */}
+      {/* Upload button */}
       {selectedFiles.length > 0 && (
-        <div className="mt-3 sm:mt-4">
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleUpload();
-            }}
+        <div className="mt-4">
+          <button
+            onClick={(e) => { e.stopPropagation(); handleUpload(); }}
             disabled={selectedFiles.length === 0 || uploading}
-            className="w-full bg-white hover:bg-white/90 active:bg-white/80 text-indigo-600 shadow-lg min-h-[44px] text-sm sm:text-base"
+            className="w-full bg-primary text-on-primary py-2.5 rounded-sm text-sm font-medium flex items-center justify-center gap-2 hover:bg-primary-dim transition-colors active:scale-[0.98] disabled:opacity-50"
           >
             {uploading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Uploading...
-              </>
+              <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
             ) : (
               <>
-                <Upload className="w-4 h-4" />
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>upload</span>
                 {selectedFiles.length === 1 ? 'Upload File' : `Upload ${selectedFiles.length} Files`}
               </>
             )}
-          </Button>
+          </button>
         </div>
       )}
     </div>

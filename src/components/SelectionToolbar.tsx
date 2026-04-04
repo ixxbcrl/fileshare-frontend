@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Trash2, X, Loader2, FolderInput, ChevronDown } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { fileApi } from '../services/api';
 import toast from 'react-hot-toast';
 import type { DirectoryMetadata } from '../types';
@@ -25,13 +25,8 @@ const SelectionToolbar = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const totalSelected = selectedFileIds.length + selectedDirectoryIds.length;
+  const moveTargets = availableFolders.filter((f) => !selectedDirectoryIds.includes(f.id));
 
-  // Exclude selected directories from move targets (can't move a folder into itself)
-  const moveTargets = availableFolders.filter(
-    (folder) => !selectedDirectoryIds.includes(folder.id)
-  );
-
-  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -45,36 +40,21 @@ const SelectionToolbar = ({
   const handleBulkDelete = async () => {
     const fileCount = selectedFileIds.length;
     const dirCount = selectedDirectoryIds.length;
-
-    let confirmMessage = 'Are you sure you want to delete ';
-    if (fileCount > 0 && dirCount > 0) {
-      confirmMessage += `${fileCount} file(s) and ${dirCount} folder(s)?`;
-    } else if (fileCount > 0) {
-      confirmMessage += `${fileCount} file(s)?`;
-    } else {
-      confirmMessage += `${dirCount} folder(s)?`;
-    }
-
-    confirmMessage += '\n\nDeleting folders will also delete all files inside them. This action cannot be undone.';
-
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+    let msg = 'Delete ';
+    if (fileCount > 0 && dirCount > 0) msg += `${fileCount} file(s) and ${dirCount} folder(s)?`;
+    else if (fileCount > 0) msg += `${fileCount} file(s)?`;
+    else msg += `${dirCount} folder(s)?`;
+    msg += '\n\nFolders and all contents will be permanently removed.';
+    if (!window.confirm(msg)) return;
 
     setDeleting(true);
     try {
       const response = await fileApi.bulkDelete(selectedFileIds, selectedDirectoryIds);
-
-      toast.success(
-        `Successfully deleted ${response.deleted_files} file(s) and ${response.deleted_directories} folder(s)`
-      );
-
+      toast.success(`Deleted ${response.deleted_files} file(s) and ${response.deleted_directories} folder(s)`);
       onDeleteSuccess();
       onClearSelection();
     } catch (error: any) {
-      console.error('Bulk delete error:', error);
-      const errorMessage = error.response?.data?.error || 'Failed to delete selected items';
-      toast.error(errorMessage);
+      toast.error(error.response?.data?.error || 'Failed to delete selected items');
     } finally {
       setDeleting(false);
     }
@@ -84,83 +64,68 @@ const SelectionToolbar = ({
     setMoveDropdownOpen(false);
     setMoving(true);
     try {
-      await Promise.all(
-        selectedFileIds.map((fileId) => fileApi.moveFile(fileId, targetDirectoryId))
-      );
-      await Promise.all(
-        selectedDirectoryIds.map((dirId) => fileApi.moveDirectory(dirId, targetDirectoryId))
-      );
-
-      toast.success(`Successfully moved ${totalSelected} item(s) to "${targetName}"`);
+      await Promise.all(selectedFileIds.map((id) => fileApi.moveFile(id, targetDirectoryId)));
+      await Promise.all(selectedDirectoryIds.map((id) => fileApi.moveDirectory(id, targetDirectoryId)));
+      toast.success(`Moved ${totalSelected} item(s) to "${targetName}"`);
       onDeleteSuccess();
       onClearSelection();
     } catch (error: any) {
-      console.error('Bulk move error:', error);
-      const errorMessage = error.response?.data?.error || 'Failed to move selected items';
-      toast.error(errorMessage);
+      toast.error(error.response?.data?.error || 'Failed to move selected items');
     } finally {
       setMoving(false);
     }
   };
 
-  if (totalSelected === 0) {
-    return null;
-  }
+  if (totalSelected === 0) return null;
 
   const isBusy = deleting || moving;
 
   return (
     <>
-      {/* Desktop Toolbar */}
-      <div className="hidden sm:flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-        <div className="flex items-center space-x-4">
-          <span className="text-sm font-semibold text-blue-900">
+      {/* Desktop toolbar */}
+      <div className="hidden sm:flex items-center justify-between bg-surface-container border border-outline-variant/20 rounded-sm p-4 mb-4">
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-semibold text-on-surface">
             {totalSelected} item(s) selected
           </span>
           {selectedFileIds.length > 0 && (
-            <span className="text-xs text-blue-700">
-              {selectedFileIds.length} file(s)
-            </span>
+            <span className="text-xs text-on-surface-variant">{selectedFileIds.length} file(s)</span>
           )}
           {selectedDirectoryIds.length > 0 && (
-            <span className="text-xs text-blue-700">
-              {selectedDirectoryIds.length} folder(s)
-            </span>
+            <span className="text-xs text-on-surface-variant">{selectedDirectoryIds.length} folder(s)</span>
           )}
         </div>
 
-        <div className="flex items-center space-x-2">
-          {/* Move to folder dropdown */}
+        <div className="flex items-center gap-2">
+          {/* Move to folder */}
           {moveTargets.length > 0 && (
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setMoveDropdownOpen((prev) => !prev)}
                 disabled={isBusy}
-                className="btn-secondary flex items-center space-x-2"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-surface-container-high text-on-surface rounded-sm hover:bg-surface-variant transition-colors disabled:opacity-50"
               >
                 {moving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Moving...</span>
-                  </>
+                  <><Loader2 className="w-4 h-4 animate-spin" /><span>Moving...</span></>
                 ) : (
                   <>
-                    <FolderInput className="w-4 h-4" />
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>drive_file_move</span>
                     <span>Move to folder</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${moveDropdownOpen ? 'rotate-180' : ''}`} />
+                    <span className="material-symbols-outlined transition-transform" style={{ fontSize: '16px', transform: moveDropdownOpen ? 'rotate(180deg)' : 'none' }}>
+                      expand_more
+                    </span>
                   </>
                 )}
               </button>
-
               {moveDropdownOpen && (
-                <div className="absolute right-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                <div className="absolute right-0 mt-1 w-56 bg-surface-container-lowest border border-outline-variant/20 rounded-sm shadow-lg z-50 py-1">
                   {moveTargets.map((folder) => (
                     <button
                       key={folder.id}
                       onClick={() => handleBulkMove(folder.id, folder.name)}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                      className="w-full text-left px-4 py-2 text-sm text-on-surface hover:bg-surface-container flex items-center gap-2"
                     >
-                      <FolderInput className="w-4 h-4 text-gray-400 shrink-0" />
+                      <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: '16px' }}>folder</span>
                       <span className="truncate">Move to {folder.name}</span>
                     </button>
                   ))}
@@ -172,48 +137,35 @@ const SelectionToolbar = ({
           <button
             onClick={handleBulkDelete}
             disabled={isBusy}
-            className="btn-danger flex items-center space-x-2"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-error-container/20 text-error rounded-sm hover:bg-error-container/30 transition-colors disabled:opacity-50"
           >
             {deleting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Deleting...</span>
-              </>
+              <><Loader2 className="w-4 h-4 animate-spin" /><span>Deleting...</span></>
             ) : (
-              <>
-                <Trash2 className="w-4 h-4" />
-                <span>Delete Selected</span>
-              </>
+              <><span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span><span>Delete</span></>
             )}
           </button>
 
           <button
             onClick={onClearSelection}
             disabled={isBusy}
-            className="btn-secondary flex items-center space-x-2"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors disabled:opacity-50"
           >
-            <X className="w-4 h-4" />
+            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
             <span>Cancel</span>
           </button>
         </div>
       </div>
 
-      {/* Mobile Floating Action Bar */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-4 z-40 animate-slide-up">
+      {/* Mobile floating bar */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant/10 shadow-lg p-4 z-40 animate-slide-up">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold text-gray-900">
-            {totalSelected} selected
-          </span>
-          <button
-            onClick={onClearSelection}
-            disabled={isBusy}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
+          <span className="text-sm font-semibold text-on-surface">{totalSelected} selected</span>
+          <button onClick={onClearSelection} disabled={isBusy} className="p-2 hover:bg-surface-container rounded-full transition-colors">
+            <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: '20px' }}>close</span>
           </button>
         </div>
 
-        {/* Mobile move options */}
         {moveTargets.length > 0 && (
           <div className="mb-2 space-y-1">
             {moveTargets.map((folder) => (
@@ -221,19 +173,12 @@ const SelectionToolbar = ({
                 key={folder.id}
                 onClick={() => handleBulkMove(folder.id, folder.name)}
                 disabled={isBusy}
-                className="btn-secondary w-full flex items-center justify-center space-x-2"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium bg-surface-container text-on-surface rounded-sm hover:bg-surface-container-high transition-colors disabled:opacity-50"
               >
-                {moving ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Moving...</span>
-                  </>
-                ) : (
-                  <>
-                    <FolderInput className="w-5 h-5" />
-                    <span className="truncate">Move to {folder.name}</span>
-                  </>
+                {moving ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>drive_file_move</span>
                 )}
+                <span className="truncate">Move to {folder.name}</span>
               </button>
             ))}
           </div>
@@ -242,19 +187,12 @@ const SelectionToolbar = ({
         <button
           onClick={handleBulkDelete}
           disabled={isBusy}
-          className="btn-danger w-full flex items-center justify-center space-x-2"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium bg-error-container/20 text-error rounded-sm hover:bg-error-container/30 transition-colors disabled:opacity-50"
         >
-          {deleting ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Deleting...</span>
-            </>
-          ) : (
-            <>
-              <Trash2 className="w-5 h-5" />
-              <span>Delete Selected</span>
-            </>
+          {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
           )}
+          Delete Selected
         </button>
       </div>
     </>

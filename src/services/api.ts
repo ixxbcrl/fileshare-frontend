@@ -10,6 +10,7 @@ import type {
   DeleteResponse,
   MoveResponse,
   HealthResponse,
+  RecentFilesResponse,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -157,6 +158,16 @@ export const fileApi = {
   moveDirectory: async (directoryId: string, targetDirectoryId: string): Promise<MoveResponse> => {
     const response = await apiClient.patch<MoveResponse>(`/api/directories/${directoryId}`, {
       parent_id: targetDirectoryId,
+    });
+    return response.data;
+  },
+
+  /**
+   * Get recently uploaded files across all directories
+   */
+  getRecentFiles: async (limit = 20): Promise<RecentFilesResponse> => {
+    const response = await apiClient.get<RecentFilesResponse>('/api/files/recent', {
+      params: { limit },
     });
     return response.data;
   },
