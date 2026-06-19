@@ -54,6 +54,7 @@ export const fileApi = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 0,
       onUploadProgress: (progressEvent: AxiosProgressEvent) => {
         if (onProgress && progressEvent.total) {
           const percentCompleted = Math.round(

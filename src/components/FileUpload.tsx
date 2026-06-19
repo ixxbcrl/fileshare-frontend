@@ -126,11 +126,11 @@ const FileUpload = ({ onUploadSuccess, currentDirectoryId }: FileUploadProps) =>
               {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
               ({formatFileSize(selectedFiles.reduce((s, f) => s + f.size, 0))})
             </p>
-            <div className="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
+            <div className="space-y-1.5 max-h-40 overflow-y-auto overflow-x-hidden custom-scrollbar">
               {selectedFiles.map((file, idx) => (
                 <div
                   key={`${file.name}-${idx}`}
-                  className="flex items-center justify-between bg-surface-container-lowest rounded-sm px-3 py-2"
+                  className="flex items-center justify-between bg-surface-container-lowest rounded-sm px-3 py-2 min-w-0"
                 >
                   <div className="flex-1 text-left min-w-0">
                     <p className="font-medium text-on-surface truncate text-sm">{file.name}</p>
